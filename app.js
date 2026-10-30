@@ -92,8 +92,12 @@ const UPSET_MIN_SPREAD = 6;      // favourite must be laying MORE than this (6.5
 const UPSET_ALERT_SECONDS = 600; // ...and be trailing with under 10:00 left -> 9.3% of games
 const UPSET_WATCH_AFTER = 2100;  // the quieter watch starts after the first 5:00 of the game
 
-const CLOSE_MAX_DIFF = ONE_POSS; // one possession...
-const CLOSE_SECONDS_LEFT = 120;  // ...under 2:00 to go -> ~21% of games reach this state
+// Measured in REAL time, not game time: a basketball game takes ~122 real minutes for 40
+// of play, and the last 2:00 of game clock is 10.5% of the broadcast. At within 3 / under
+// 2:00 this lit up only 2.5% of the live board at any instant - one flashing card on a
+// 20-game night, which is too thin to be doing any work.
+const CLOSE_MAX_DIFF = 5;        // within 5...
+const CLOSE_SECONDS_LEFT = 180;  // ...under 3:00 to go -> 4.5% of the board, ~2 cards in 40
 
 const GOOD_GAME_DIFF = 6;        // two possessions, both teams ranked, second half
 
@@ -894,7 +898,7 @@ function renderLegend() {
   const rows = [
     ['Live games', [
       ['#c8102e', 'Upset alert', `(flashes) — favorite by more than ${UPSET_MIN_SPREAD} trailing with under ${mins(UPSET_ALERT_SECONDS)} left`],
-      ['#2f6fd6', 'Close game', `(flashes) — one-possession game (within ${CLOSE_MAX_DIFF}), under ${mins(CLOSE_SECONDS_LEFT)} left`],
+      ['#2f6fd6', 'Close game', `(flashes) — within ${CLOSE_MAX_DIFF}, under ${mins(CLOSE_SECONDS_LEFT)} left`],
       ['#c8102e', 'Upset watch', `favorite by more than ${UPSET_MIN_SPREAD} trailing, any time after the first 5:00`],
       ['#2f6fd6', 'Ranked close game', `within ${GOOD_GAME_DIFF}, both teams ranked, second half`],
       ['#12925a', 'Comeback watch', `a lead has shrunk by ${COMEBACK_CUT}+ and the game is now within ${COMEBACK_MAX_DIFF}`],
