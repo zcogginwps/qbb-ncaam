@@ -1,0 +1,338 @@
+:root {
+  --bg: #0b0d12;
+  --panel: #151923;
+  --panel-2: #1c2130;
+  --line: #2a3142;
+  --text: #eef1f7;
+  --muted: #8b93a7;
+  --accent: #ffd166;
+  --live: #ff3b4d;
+  --upset: #8a1a2a;      /* alert flashes run between these and their -dim partners */
+  --upset-dim: #2d1218;
+  --close: #1b4f9c;      /* blue */
+  --close-dim: #142238;
+  --new: #5b6478;
+  --delayed: #f28c28;
+  --chip: #232a3a;
+  --chip-on: #ffd166;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+  font: 15px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  padding: 0 14px calc(24px + env(safe-area-inset-bottom));
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Pull-to-refresh strip (touch only): sits between the sticky header and the board and
+   opens up as you pull, so the title and chips stay put while the games slide down */
+.ptr {
+  height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  color: var(--muted);
+}
+.ptr .ptr-icon {
+  width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--panel-2); border: 1px solid var(--line); font-size: 17px; font-weight: 800; line-height: 1;
+  transition: transform .2s; opacity: 0;
+}
+.ptr.show .ptr-icon { opacity: 1; }
+.ptr.armed .ptr-icon { color: var(--accent); border-color: var(--accent); transform: rotate(180deg); }
+.ptr.loading .ptr-icon { color: var(--accent); transform: none; animation: spin .8s linear infinite; }
+.ptr.settle { transition: height .25s ease-out; }
+
+/* Header */
+.top {
+  position: sticky; top: 0; z-index: 5;
+  background: linear-gradient(var(--bg) 88%, transparent);
+  padding: calc(8px + env(safe-area-inset-top)) 0 8px;
+}
+.bar { display: flex; align-items: center; gap: 6px; }
+.bar h1 { margin: 0; font-size: 19px; letter-spacing: .2px; white-space: nowrap; flex: none; }
+.bar h1 .sport { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: 1px; vertical-align: 2px; }
+.demo-badge { font-size: 10px; font-weight: 800; background: var(--accent); color: #1a1400; border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+.demo-badge[hidden] { display: none; }
+/* Date picker: a dropdown of every date ESPN has games for, with one-tap day stepping
+   either side of it (basketball is a date-based sport, so this gets used constantly). */
+#date-select {
+  appearance: none; -webkit-appearance: none; min-width: 0; flex: 1 1 auto;
+  background: var(--chip) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b93a7' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 8px center;
+  color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 5px 22px 5px 9px; font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer;
+}
+.step {
+  flex: none; border: 1px solid var(--line); background: var(--chip); color: var(--text);
+  border-radius: 8px; width: 26px; height: 28px; font-size: 16px; font-weight: 800; line-height: 1;
+  cursor: pointer; padding: 0; -webkit-tap-highlight-color: transparent;
+}
+.step:disabled { opacity: .35; cursor: default; }
+.menu-btn {
+  flex: none;
+  border: 1px solid var(--line); background: var(--chip); color: var(--text);
+  border-radius: 8px; padding: 5px 9px; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  white-space: nowrap;
+}
+.menu-btn .caret { color: var(--muted); margin-left: 2px; }
+.menu-btn.has-teams { border-color: var(--accent); }
+/* Chips: a fixed 5-column grid so the row count never depends on label widths (two rows
+   for nine chips), and tall enough to hit with a thumb. */
+.filters {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px;
+  margin-top: 8px; max-width: 560px;
+}
+.chip {
+  border: 1px solid var(--line); background: var(--chip); color: var(--muted);
+  border-radius: 999px; padding: 10px 2px; font-size: 12px; font-weight: 700; line-height: 1;
+  cursor: pointer; transition: background .15s, color .15s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+  -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none;
+}
+.chip.on { background: var(--chip-on); color: #1a1400; border-color: var(--chip-on); }
+.chip.all { border-style: dashed; grid-column: span 2; }
+.chip.fav.on { background: var(--accent); }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; }
+.hint { color: var(--muted); font-size: 11px; }
+.popover {
+  position: absolute; z-index: 30; min-width: 170px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5); padding: 6px;
+}
+.popover[hidden] { display: none; }
+.popover .title { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 6px 10px 4px; }
+.popover .title small { text-transform: none; letter-spacing: 0; font-weight: 500; opacity: .85; margin-left: 4px; }
+.popover .title + .title, .popover button + .title { margin-top: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
+.popover button {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: none; border: 0; color: var(--text); font: inherit; font-size: 14px; font-weight: 600;
+  padding: 10px 10px; border-radius: 8px; cursor: pointer; text-align: left;
+}
+.popover button:hover, .popover button:focus-visible { background: var(--chip); outline: none; }
+.popover button .check { color: var(--accent); font-weight: 800; }
+.refresh { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.refresh button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--text);
+  border-radius: 8px; width: 26px; height: 26px; font-size: 14px; cursor: pointer;
+}
+.refresh button.spin { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Favorite star, top-right of every card */
+.star {
+  position: absolute; top: 4px; right: 6px; z-index: 1;
+  background: none; border: 0; padding: 4px; cursor: pointer; line-height: 0;
+  color: var(--muted); opacity: .7; -webkit-tap-highlight-color: transparent;
+}
+.star svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.star.on { color: var(--accent); opacity: 1; }
+.star.on svg { fill: currentColor; }
+
+/* Groups */
+.group { margin-top: 18px; }
+.group h2 {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--muted);
+  margin: 0 0 8px 2px; display: flex; align-items: center; gap: 6px;
+}
+.dot.live { width: 8px; height: 8px; border-radius: 50%; background: var(--live); display: inline-block;
+  animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 10px; }
+
+/* Cards */
+.card {
+  position: relative;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 12px 9px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto;
+  column-gap: 10px;
+  transition: border-color .2s;
+}
+.card.live { border-color: #3a4560; }
+.card .teams { grid-column: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.team { display: flex; align-items: center; gap: 8px; min-height: 28px; min-width: 0; }
+.team img { width: 26px; height: 26px; object-fit: contain; flex: none; }
+.team .rank { color: var(--accent); font-size: 12px; font-weight: 700; width: 24px; flex: none; text-align: right; }
+/* Tournament seeds read as "(4)" rather than "#4" so nobody mistakes a seed for a poll spot */
+.team .rank.seed { color: var(--muted); font-weight: 800; }
+.team .rank:empty { visibility: hidden; }
+.team .name { font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team .rec { color: var(--muted); font-size: 12px; flex: none; }
+.team .score { margin-left: auto; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; }
+.team.loser .name, .team.loser .score { opacity: .55; }
+.card.pre .team .score { display: none; }
+
+.status {
+  grid-column: 2; grid-row: 1; align-self: center; margin-top: 14px;
+  text-align: right; font-weight: 700; font-size: 14px; min-width: 64px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.status .q { font-size: 15px; }
+.status .clock { display: block; font-size: 13px; color: var(--muted); font-weight: 600; }
+.card.live .status .q { color: var(--live); }
+.card.post .status { color: var(--muted); }
+.card.pre .status { color: var(--text); }
+.status .day { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
+
+.meta {
+  grid-column: 1 / -1; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line);
+  display: flex; gap: 12px; align-items: center; color: var(--muted); font-size: 12.5px; flex-wrap: wrap;
+}
+.meta .spread { font-weight: 700; color: var(--text); }
+.meta .tv { margin-left: auto; font-weight: 600; }
+.meta .tier { font-size: 11px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+.meta .round { font-size: 11px; color: var(--accent); font-weight: 700; }
+
+/* Basketball's answer to football's down & distance: who is on a run right now. ESPN has no
+   `situation` for basketball, so the run is computed from the scores we poll. */
+.runline {
+  grid-column: 1 / -1; margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  font-size: 12.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.runline .run { font-weight: 800; letter-spacing: .2px; }
+.runline .run-team { color: var(--muted); font-weight: 600; }
+.card.flash .runline { border-top-color: rgba(255,255,255,.2); }
+.card.flash .runline .run-team { color: rgba(255,255,255,.8); }
+
+.badges { position: absolute; top: -9px; left: 10px; display: flex; gap: 6px; }
+.badge {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; color: #fff;
+}
+
+.badge.upset { background: #c8102e; }
+.badge.close { background: #2f6fd6; }
+.badge.new { background: var(--new); }
+.badge.delayed { background: var(--delayed); color: #1a0e00; }
+
+/* The pulse is driven by a single `pulse` class toggling on <body>, so every flashing card
+   is always on the same beat even after the list reorders. */
+.card.flash {
+  background-color: var(--fa); transition: background-color 1s ease-in-out;
+  border-color: rgba(255,255,255,.25);
+}
+body.pulse .card.flash { background-color: var(--fb); }
+@media (prefers-reduced-motion: reduce) { .card.flash { transition: none; } }
+.f-upset       { --fa: var(--upset-dim); --fb: var(--upset); }
+.f-close       { --fa: var(--close-dim); --fb: var(--close); }
+.f-upset-close { --fa: var(--upset);     --fb: var(--close); }
+
+.card.flash .team .rec, .card.flash .meta, .card.flash .status .clock { color: rgba(255,255,255,.8); }
+.card.flash .meta { border-top-color: rgba(255,255,255,.2); }
+.card.flash .team .rank, .card.flash .status .q, .card.flash .star { color: #fff; }
+.card.flash .star.on { color: var(--accent); }
+
+/* Watches: a soft tinted edge that fades into the card instead of a hard ring. One colour
+   per card (priority in app.js); badges are filled like the alert badges. */
+.watch { --ring: var(--muted); }
+.card.watch {
+  border-color: color-mix(in srgb, var(--ring) 55%, var(--line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ring) 28%, transparent),
+              0 0 14px color-mix(in srgb, var(--ring) 22%, transparent),
+              inset 0 0 28px color-mix(in srgb, var(--ring) 10%, transparent);
+}
+.w-upsetWatch, .w-upsetWin { --ring: #c8102e; }
+.w-goodGame, .w-closeCall  { --ring: #2f6fd6; }
+.w-comeback, .w-comebackWin { --ring: #12925a; }
+.w-blowout, .w-blowoutWin  { --ring: #c99700; }
+.badge.watch { background: var(--ring); color: #fff; }
+
+/* Delayed: same soft edge in orange, parked at the bottom of Live, nothing flashes */
+.card.delayed {
+  --ring: var(--delayed);
+  border-color: color-mix(in srgb, var(--ring) 55%, var(--line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ring) 28%, transparent),
+              0 0 14px color-mix(in srgb, var(--ring) 22%, transparent),
+              inset 0 0 28px color-mix(in srgb, var(--ring) 10%, transparent);
+}
+.card.delayed .status .q { color: var(--delayed); }
+
+/* New game: parked at the bottom of Live for its first couple of minutes */
+.card.newgame { border-style: dashed; }
+.card.newgame .status .q { color: var(--muted); }
+
+/* Reorder slide: a moving card rides above its neighbours while it glides */
+.card.moving { z-index: 3; will-change: transform; }
+
+@media (max-width: 560px) {
+  .menu-btn .long { display: none; }
+  .bar h1 { font-size: 17px; }
+  .bar h1 .sport { display: none; }
+}
+@media (max-width: 400px) {
+  .team .name { font-size: 15px; }
+  .team .rec { font-size: 11px; }
+  .team .score { font-size: 20px; min-width: 28px; }
+  .status { min-width: 56px; }
+}
+
+/* Footer, states */
+.legend { margin-top: 26px; color: var(--muted); font-size: 12.5px; display: flex; flex-direction: column; gap: 5px; max-width: 560px; }
+.legend h3 { margin: 10px 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--muted); }
+.legend h3:first-child { margin-top: 0; }
+.legend b { color: var(--text); font-weight: 700; }
+.legend .fine { margin: 12px 0 0; font-size: 11.5px; opacity: .8; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+
+.empty, .error { color: var(--muted); text-align: center; margin-top: 40px; }
+.error { color: #ff8a94; }
+
+/* Favorite Teams panel */
+body.panel-open { overflow: hidden; }
+.panel {
+  position: fixed; inset: 0; z-index: 50; background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column;
+}
+.panel[hidden] { display: none; }
+.panel-head {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  padding: calc(10px + env(safe-area-inset-top)) 12px 10px; border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.panel-head h2 { margin: 0; font-size: 16px; text-align: center; white-space: nowrap; }
+.panel-nav {
+  background: none; border: 0; color: var(--accent); font: inherit; font-size: 15px; font-weight: 700;
+  cursor: pointer; padding: 6px 4px; justify-self: start;
+}
+#panel-close { justify-self: end; }
+#panel-back[hidden] { display: block; visibility: hidden; } /* keep the title centered */
+.panel-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 14px 20px; max-width: 720px; width: 100%; margin: 0 auto; }
+.panel-foot { padding: 10px 14px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--panel); }
+.panel-foot:empty { display: none; }
+.btn-primary {
+  display: block; width: 100%; max-width: 720px; margin: 0 auto;
+  background: var(--accent); color: #1a1400; border: 0; border-radius: 10px;
+  padding: 12px; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer;
+}
+.panel-empty { color: var(--muted); text-align: center; padding: 40px 10px; line-height: 1.5; }
+.panel-note { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; }
+
+.team-list { list-style: none; margin: 0; padding: 0; }
+.team-list li {
+  display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line);
+}
+.team-list img { width: 30px; height: 30px; object-fit: contain; flex: none; }
+.team-list .t-name { font-weight: 700; font-size: 15px; }
+.team-list .t-conf { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
+.team-list .grow { flex: 1; min-width: 0; }
+.star.inline { position: static; padding: 6px; opacity: .8; }
+.star.inline svg { width: 22px; height: 22px; }
+
+.cat-list { display: flex; flex-direction: column; gap: 8px; }
+.cat-btn {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 12px;
+  padding: 14px 14px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; text-align: left;
+}
+.cat-btn .count { color: var(--accent); font-size: 12px; font-weight: 800; }
+.cat-btn .chev { color: var(--muted); margin-left: 8px; }
+
+.search {
+  width: 100%; box-sizing: border-box; margin-bottom: 10px;
+  background: var(--chip); border: 1px solid var(--line); color: var(--text); border-radius: 10px;
+  padding: 9px 12px; font: inherit; font-size: 15px;
+}
+.team-list h3 {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted);
+  margin: 16px 0 4px; position: sticky; top: -12px; background: var(--bg); padding: 6px 0;
+}

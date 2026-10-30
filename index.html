@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="QBB Hoops">
+  <title>Quad Box Buddy - NCAAM</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=1">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=1">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=1">
+  <link rel="manifest" href="manifest.json?v=1">
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+  <header class="top">
+    <div class="bar">
+      <h1>QBB <span class="sport">NCAAM</span><span id="demo-badge" class="demo-badge" hidden>DEMO</span></h1>
+      <button id="date-prev" class="step" aria-label="Previous day">‹</button>
+      <select id="date-select" aria-label="Date"><option>Loading…</option></select>
+      <button id="date-next" class="step" aria-label="Next day">›</button>
+      <button id="fav-teams-btn" class="menu-btn" aria-haspopup="dialog">★ <span class="long">Favorite </span>Teams <span class="caret">▾</span></button>
+    </div>
+    <div class="filters" id="filters" role="group" aria-label="Filters">
+      <button class="chip fav" data-conf="fav" title="Favorites">★ Fav</button>
+      <button class="chip" data-conf="top25" id="chip-top25" title="Ranked teams. Hold to choose the poll.">Top 25</button>
+      <button class="chip" data-conf="sec">SEC</button>
+      <button class="chip" data-conf="b1g">Big Ten</button>
+      <button class="chip" data-conf="b12">Big 12</button>
+      <button class="chip" data-conf="acc">ACC</button>
+      <button class="chip" data-conf="be" title="Big East">Big East</button>
+      <button class="chip" data-conf="mid" title="Every other Division I conference">Mid</button>
+      <button class="chip all" id="chip-all">All</button>
+    </div>
+    <div class="toolbar">
+      <span class="hint" id="poll-hint">Hold Top 25 to pick the poll</span>
+      <span class="refresh">
+        <span id="updated">Loading…</span>
+        <button id="refresh-btn" title="Refresh now" aria-label="Refresh now">↻</button>
+      </span>
+    </div>
+    <div id="poll-menu" class="popover" role="menu" hidden></div>
+  </header>
+  <div id="ptr" class="ptr" aria-hidden="true"><span class="ptr-icon">↓</span></div>
+
+  <main id="board">
+    <section class="group" id="group-live" hidden>
+      <h2><span class="dot live"></span>Live</h2>
+      <div class="list" id="list-live"></div>
+    </section>
+    <section class="group" id="group-pre" hidden>
+      <h2>Upcoming</h2>
+      <div class="list" id="list-pre"></div>
+    </section>
+    <section class="group" id="group-post" hidden>
+      <h2>Final</h2>
+      <div class="list" id="list-post"></div>
+    </section>
+    <p class="empty" id="empty" hidden>No games match these filters.</p>
+    <p class="error" id="error" hidden></p>
+  </main>
+
+  <footer class="legend" id="legend"></footer>
+
+  <div id="panel" class="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title" hidden>
+    <div class="panel-head">
+      <button id="panel-back" class="panel-nav" hidden>‹ Back</button>
+      <h2 id="panel-title">Favorite Teams</h2>
+      <button id="panel-close" class="panel-nav">Done</button>
+    </div>
+    <div class="panel-body" id="panel-body"></div>
+    <div class="panel-foot" id="panel-foot"></div>
+  </div>
+
+  <script src="app.js?v=1"></script>
+</body>
+</html>

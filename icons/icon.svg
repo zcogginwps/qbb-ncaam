@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><clipPath id="cB"><rect width="512" height="512" rx="110"/></clipPath></defs>
+<g clip-path="url(#cB)">
+  <rect width="512" height="512" fill="#0b0d12"/>
+  <rect x="0" y="0" width="252" height="252" fill="#1b4f9c"/>
+  <rect x="260" y="0" width="252" height="252" fill="#146b45"/>
+  <rect x="0" y="260" width="252" height="252" fill="#8a1a2a"/>
+  <rect x="260" y="260" width="252" height="252" fill="#e6b422"/>
+  <rect x="0" y="0" width="512" height="512" fill="#000" opacity=".18"/>
+</g>
+
+<defs>
+  <radialGradient id="leather" cx=".36" cy=".3" r=".85">
+    <stop offset="0" stop-color="#e2823a"/><stop offset=".5" stop-color="#c2621f"/><stop offset="1" stop-color="#6d3310"/>
+  </radialGradient>
+  <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff" stop-opacity=".24"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/>
+  </linearGradient>
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity=".45"/></filter>
+  <clipPath id="ball"><circle r="124"/></clipPath>
+</defs>
+<g transform="translate(256 216) rotate(-12)" filter="url(#shadow)">
+  <circle r="124" fill="url(#leather)" stroke="#43200b" stroke-width="5"/>
+  <g clip-path="url(#ball)" fill="none" stroke="#3a1b08" stroke-width="7" stroke-linecap="round">
+    <!-- vertical and horizontal seams -->
+    <line x1="0" y1="-124" x2="0" y2="124"/>
+    <line x1="-124" y1="0" x2="124" y2="0"/>
+    <!-- the two curved side seams -->
+    <path d="M-74 -118 Q-16 0 -74 118"/>
+    <path d="M74 -118 Q16 0 74 118"/>
+  </g>
+  <circle r="124" fill="url(#sheen)"/>
+</g>
+<rect x="76" y="356" width="360" height="112" rx="30" fill="#0b0d12" stroke="#ffd166" stroke-width="6"/>
+<text x="256" y="442" text-anchor="middle" font-size="96" fill="#ffd166" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-weight="900" letter-spacing="6">QBB</text>
+</svg>
