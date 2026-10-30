@@ -55,7 +55,38 @@ const DEFAULT_FILTERS = ['fav', 'top25', ...MAJOR_KEYS]; // majors + ranked (+ s
  *    possession rather than on a shorter window.
  */
 const ONE_POSS = 3;              // a one-possession game
-const TIER_SIZE = ONE_POSS;      // sorting granularity: possessions, not scores
+const TIER_SIZE = ONE_POSS;      // possessions; used for the card label and the comeback stall test
+
+/* Ordering the live board.
+ *
+ * Football sorted by margin tier. Basketball is a game of runs, so that churned constantly
+ * AND got the order wrong: a 3-point game early outranked a 5-point game late. What a
+ * margin means depends entirely on when it happens.
+ *
+ * So a game is judged on how big the deficit is against how big a deficit is still WITHIN
+ * REACH at this moment. Reach is a curve, not a constant:
+ *   - early, before many points are on the board, close has to mean closer  (total / 7)
+ *   - through the middle of the game anything under ~10 is in reach whatever the clock
+ *   - at the end the clock takes over: ~1.5 points per minute left, plus a possession
+ * Then A = margin / reach, and the bands are even cuts on A: within reach, twice that, and
+ * beyond. Measured on 499 real game timelines polled every 15s.
+ *
+ * Band 1 deliberately holds about two thirds of the board. Most basketball games genuinely
+ * ARE close; the band still sheds the ones that are not, and inside it the sort by time
+ * left does the real work - a game can only still be in band 1 late if reach has tapered,
+ * which means it is genuinely tight.
+ */
+const REACH_CAP = 10;            // a deficit under this is in reach for most of the game
+const REACH_FLOOR = 6;           // ...but never judge by fewer points than this
+const REACH_PER_MIN = 1.5;       // endgame: points per minute still on the clock
+const REACH_BASE = 2.5;          // ...plus a possession
+const REACH_DIV = 7;             // early: reach grows with the points already scored
+const BAND_CUTS = [1.0, 2.0, 3.2];
+// A band only changes once the game clears the line by this much, so a single basket
+// either side of a boundary cannot make a card jump back and forth. Proportional rather
+// than a fixed amount, because A is itself a ratio. Takes the share of polls that move a
+// card from 6.9% to 4.4% (football-style margin tiers churned on 22.6%).
+const BAND_SLACK = 0.10;
 
 const UPSET_MIN_SPREAD = 6;      // favourite must be laying MORE than this (6.5+)
 const UPSET_ALERT_SECONDS = 600; // ...and be trailing with under 10:00 left -> 9.3% of games
@@ -266,6 +297,8 @@ function pruneState() {
   for (const bag of [peakLeads, comebackState, runs]) {
     for (const id of Object.keys(bag)) if ((bag[id].at || 0) < cutoff) delete bag[id];
   }
+  const live = new Set(games.map(g => g.id));
+  for (const id of bandState.keys()) if (!live.has(id)) bandState.delete(id);
 }
 
 // Favorites come from two places: games starred directly (by ESPN game id) and favorite
@@ -408,6 +441,47 @@ function secondsLeft(g) {
 
 function diff(g) { return Math.abs(g.home.score - g.away.score); }
 function tier(g) { return Math.max(1, Math.ceil(diff(g) / TIER_SIZE)); }
+
+// Minutes left to play. Same as secondsLeft for regulation, but in overtime that returns 0
+// (nothing left of the REGULATION clock) and reach would collapse to a possession, so an
+// overtime game reads the clock of the overtime period it is actually in.
+function minutesLeft(g) {
+  if (g.state !== 'in') return 0;
+  if (g.period > 2) return g.clock / 60;
+  return secondsLeft(g) / 60;
+}
+
+function reachOf(g) {
+  const total = g.home.score + g.away.score;
+  return Math.min(
+    Math.max(total / REACH_DIV, REACH_FLOOR),
+    REACH_CAP,
+    REACH_PER_MIN * minutesLeft(g) + REACH_BASE);
+}
+// How far out of reach this game is. Half a point for a tie, so it never divides to zero
+// and a tied game still sorts above a one-point game.
+function reachRatio(g) { return Math.max(diff(g), 0.5) / reachOf(g); }
+
+// The band a game sits in, with the slack applied. Sticky per game: the value only moves
+// when the game clears the next line by BAND_SLACK. Kept in memory only - after a reload a
+// game simply starts from its true band, which is where it would have settled anyway.
+const bandState = new Map(); // game id -> the band currently being shown
+function bandOf(g) {
+  const a = reachRatio(g);
+  let raw = BAND_CUTS.length;
+  for (let i = 0; i < BAND_CUTS.length; i++) { if (a <= BAND_CUTS[i]) { raw = i; break; } }
+  const prev = bandState.get(g.id);
+  if (prev === undefined) { bandState.set(g.id, raw); return raw; }
+  let band = prev;
+  if (raw < prev) {
+    if (a <= BAND_CUTS[raw] * (1 - BAND_SLACK)) band = raw;        // moving up: clear the line
+  } else if (raw > prev) {
+    const line = prev < BAND_CUTS.length ? BAND_CUTS[prev] : Infinity;
+    if (a >= line * (1 + BAND_SLACK)) band = raw;                  // slipping back: same
+  }
+  bandState.set(g.id, band);
+  return band;
+}
 function secondHalf(g) { return isLive(g) && (g.period >= 2 || isHalftime(g)); }
 
 function favorite(g) {
@@ -538,9 +612,11 @@ function compareGames(a, b) {
   if (ba !== bb) return ba - bb;
 
   if (ba === 0) {
-    // Live: starred first, then closest possession tier, then least time left, then margin.
+    // Live: starred first, then how far out of reach the game is, then least time left,
+    // then margin. g.band is set once per render (see renderGames) rather than computed
+    // here, because the comparator runs many times per sort.
     return isFavoriteGame(b) - isFavoriteGame(a)
-      || tier(a) - tier(b) || secondsLeft(a) - secondsLeft(b) || diff(a) - diff(b);
+      || a.band - b.band || secondsLeft(a) - secondsLeft(b) || diff(a) - diff(b);
   }
   const fav = isFavoriteGame(b) - isFavoriteGame(a);
   if (ba === 1) {
@@ -713,6 +789,10 @@ function orderLive(live) {
 }
 
 function renderGames(games) {
+  // One pass before sorting: the band is sticky, so it must advance once per render and
+  // not once per comparison.
+  for (const g of games) g.band = isLive(g) ? bandOf(g) : 0;
+
   const visible = games.filter(g =>
     [...g.confKeys].some(k => filters.has(k))
     || (filters.has('fav') && isFavoriteGame(g))

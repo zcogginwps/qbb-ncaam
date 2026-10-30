@@ -1,61 +1,87 @@
-# Open question: how the live board should be ordered
+# How the live board is ordered
 
-Status as of 2026-10-29. **Unresolved — Zane thinks there is a better way.**
-Nothing in `app.js` has been changed; it still ships the football-style margin tiers.
+Settled 2026-10-30. Implemented in `app.js` (`reachOf` / `reachRatio` / `bandOf`).
 
-## Where it stands
+## The rule
 
-The app currently sorts Live by `margin tier (ceil(margin/3)) -> least time left -> margin`.
-Zane's objection: basketball is a game of runs, so margin tiers churn constantly, and a
-3-point game early outranks a 5-point game late, which is wrong.
+```
+reach = min( max(total/7, 6),  10,  1.5 * minutesLeft + 2.5 )
+A     = margin / reach
+bands = A <= 1.0  |  <= 2.0  |  <= 3.2  |  beyond
+```
 
-Three schemes were measured. All numbers come from 499 real game timelines polled every
-15s (~80,000 live moments), in `calibration/`.
+Live games sort: **starred -> band -> least time left -> margin.**
 
-| scheme | cards move / poll | notes |
-|---|---|---|
-| current margin tiers | 22.6% | baseline |
-| score ratio, bands 96/90/77 | 15.2% | buries recoverable early deficits in the bottom band |
-| ratio + time-based floor | 13.1% | satisfies both of Zane's examples |
-| same, Band 3 split in two | 16.0% | evener board, one more boundary to cross |
+"Reach" is how big a deficit is still within reach *at this moment*, and it is a curve:
 
-Hysteresis (requiring a boundary to be cleared by a margin before the card moves) takes
-any of these to roughly 6-7%. On a log scale the guard is proportional, which is the
-right shape: tight where games are crowded, loose where they are spread out.
+- **early**, before many points are on the board, close has to mean closer (`total/7`);
+- **through the middle**, anything under ~10 is in reach whatever the clock says;
+- **at the end**, the clock takes over: ~1.5 points per minute left, plus a possession.
 
-## The tension that has not been resolved
+A band only changes once the game clears the line by 10% (`BAND_SLACK`), so one basket
+either side of a boundary cannot make a card jump back and forth.
 
-Zane's two requirements pull in opposite directions:
+## Why this shape
 
-- "a late 5-point game should beat an early 1-point game" -> tolerance must GROW with time
-- "an early 10-point deficit is not dead"                 -> tolerance must SHRINK with time
+What a margin means depends entirely on when it happens, and the two obvious single
+measures each get half of it right:
 
-The score ratio `r = min/max = (T-m)/(T+m)` does the first and fails the second.
-`z = margin / sqrt(minutes left)` does the second and fails the first. Naive combinations
-(`min`, `avg`) produce non-monotonic bands, because whichever measure is more generous
-wins and which one that is flips mid-game.
+- the score ratio `min/max` ranks a late 5-point game above an early 1-point game, which
+  is correct, but it also buries recoverable early deficits, and it **saturates** - late in
+  a game everything crowds into the 90s;
+- `margin / sqrt(minutes left)` forgives early deficits correctly but demotes tight
+  finishes, which are the most watchable thing on the board.
 
-## Things worth remembering
+They disagree in the middle, and no single formula of the form `ratio - penalty` can
+settle it. The pair that proves it: 9 points at halftime (ratio 0.769) versus 12 points
+with 10 minutes left (ratio 0.795). The ratio ranks the 12-pointer higher and a clock
+penalty is dormant in both, so no threshold and no multiplier separates them.
 
-- `logit(r) = ln(min_score / margin)`. The log version of the ratio is just the trailing
-  team's score divided by the deficit. The hand-tuned 96/90/77 bands are almost exactly
-  even steps on that log scale.
-- The ratio SATURATES: late in a game everything crowds into the 90s (last-10-min median
-  is 87.7%), so evenly spaced percentages discriminate finely early, where it matters
-  least, and barely at all late, where it matters most.
-- Two different surfaces were measured and they are not the same question:
-  P(final margin within 5) and P(the trailing team wins). "Still in doubt" and "worth
-  watching right now" genuinely diverge - a 3-point game with a minute left is ~85%
-  decided but maximally watchable.
-- No win-probability-based measure will ever demote a 3-2 game at tipoff, because it
-  really is a coin flip. That case is better handled by the existing "just tipped" rule
-  that parks the opening minutes at the bottom.
-- A tie should be scored as a 1-point margin (`max(margin,1)`), not frozen at its previous
-  value. Stateless, and it avoids 2-2 inheriting a 2-0 reading and ranking below 4-2.
+The fix was to stop subtracting and let all three ingredients define `reach` instead.
+
+## Measured on 499 real game timelines, polled every 15s
+
+| band | share of board | trailing team wins | ends within 5 |
+|---|---|---|---|
+| 1 | 64.7% | 33.6% | 40.0% |
+| 2 | 25.4% | 11.5% | 18.1% |
+| 3 |  7.5% |  1.7% |  4.0% |
+| 4 |  2.3% |  0.4% |  0.4% |
+
+Band 1 deliberately holds about two thirds. Most basketball games genuinely are close; the
+band still sheds the ones that are not, and inside it the sort by time left does the real
+work - a game can only still be in band 1 late because reach has tapered, which means it
+is genuinely tight.
+
+**Churn** (share of polls on which a card moves): football-style margin tiers **22.6%** ->
+this scheme **6.9%** -> with 10% slack **4.4%**.
+
+| moment | reach | band 1 | band 2 | band 3 |
+|---|---|---|---|---|
+| 5 min in | 6.0 | within 6 | within 12 | within 19 |
+| halftime | 9.9 | within 9 | within 19 | within 31 |
+| 10 min left | 10.0 | within 10 | within 20 | within 32 |
+| 2 min left | 5.5 | within 5 | within 11 | within 17 |
+| 1 min left | 4.0 | within 4 | within 8 | within 12 |
+
+## Notes for later
+
+- Overtime reads the overtime clock (`minutesLeft`), not `secondsLeft`, which returns 0
+  once regulation is over and would collapse reach to a single possession.
+- A tie counts as half a point of margin, so it never divides to zero and still sorts
+  above a one-point game.
+- `bandState` is in memory only. After a reload a game starts from its true band, which is
+  where the hysteresis would have settled anyway.
+- The band is computed once per render, not inside `compareGames`, because the comparator
+  runs many times per sort and the band is sticky.
+- Rejected along the way, with numbers, if this is ever revisited: evenly spaced ratio
+  bands (saturate), log-spaced ratio bands (same ordering, better spacing, still saturate),
+  `margin/sqrt(time)` alone (demotes tight finishes), `min()` of two measures
+  (non-monotonic - whichever measure is more generous wins, and which one that is flips
+  mid-game), and tighter cuts putting band 1 at ~33% (rejected by Zane: most games are
+  close, and the broad band has the same filtering effect).
 
 ## Data
 
-- `calibration/games.json`   3,237 completed D1 games, Jan-Mar 2026, with closing lines
-- `calibration/timelines.json` 499 full score timelines (every score change, with clock)
-- `calibration/pull_*.py`     how they were pulled
-- `calibration/split.py`, `analyze9.py` the last two analyses run
+`calibration/` (gitignored): 3,237 completed games with closing lines, 499 full score
+timelines, and the scripts that pulled them.
