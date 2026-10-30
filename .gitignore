@@ -1,2 +1,5 @@
 .DS_Store
 .env
+
+# calibration data: kept locally, not part of the app
+calibration/
