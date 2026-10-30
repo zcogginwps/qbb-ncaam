@@ -74,7 +74,11 @@ For contrast, the same margin at different times is a completely different game:
 | 8 | 33.9% | 12.9% | 1.5% |
 | 10 | 18.1% | 7.3% | 0.2% |
 
-So "make 5 points always band 1" would file a 5.6% game beside a 33.5% one. It stays
-band 2 late - but it still **flashes as a close game**, because the flash is about what is
-worth watching right now and the band is about how reachable the game is. Two different
-jobs, which is why they use different rules.
+So "make 5 points always band 1" files a 5.6% game beside a 33.5% one. Zane went ahead
+with it anyway, and on the numbers it is cheap: band 1 goes 62.9% -> 65.0% of the board
+and its comeback rate 33.4% -> 32.5%. See `ordering.md` (`ALWAYS_REACH_MARGIN`).
+
+Such a game also **flashes as a close game** independently, because the flash is about
+what is worth watching right now and the band is about how reachable the game is. Two
+different jobs, which is why they use different rules - and why a five-point game inside
+3:00 would have been highlighted either way.

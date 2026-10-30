@@ -82,6 +82,13 @@ const REACH_PER_MIN = 1.5;       // endgame: points per minute still on the cloc
 const REACH_BASE = 2.5;          // ...plus a possession
 const REACH_DIV = 7;             // early: reach grows with the points already scored
 const BAND_CUTS = [1.0, 2.0, 3.2];
+// Zane's call: a game inside five points is always in the top band, whatever the clock
+// says. The measured comeback odds do not support it - five down is a 19.8% game with
+// 10-5 minutes left and a 5.6% one inside the last two minutes - but a five-point game
+// late is worth looking at even when it is probably decided, and this is the ordering,
+// not a prediction. It also bypasses the slack, so such a game can never be held a poll
+// behind in band 2.
+const ALWAYS_REACH_MARGIN = 5;
 // A band only changes once the game clears the line by this much, so a single basket
 // either side of a boundary cannot make a card jump back and forth. Proportional rather
 // than a fixed amount, because A is itself a ratio. Takes the share of polls that move a
@@ -471,6 +478,7 @@ function reachRatio(g) { return Math.max(diff(g), 0.5) / reachOf(g); }
 // game simply starts from its true band, which is where it would have settled anyway.
 const bandState = new Map(); // game id -> the band currently being shown
 function bandOf(g) {
+  if (diff(g) <= ALWAYS_REACH_MARGIN) { bandState.set(g.id, 0); return 0; }
   const a = reachRatio(g);
   let raw = BAND_CUTS.length;
   for (let i = 0; i < BAND_CUTS.length; i++) { if (a <= BAND_CUTS[i]) { raw = i; break; } }

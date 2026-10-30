@@ -12,6 +12,18 @@ bands = A <= 1.0  |  <= 2.0  |  <= 3.2  |  beyond
 
 Live games sort: **starred -> band -> least time left -> margin.**
 
+One override on top: **a game inside 5 points is always band 1**, whatever the clock says
+(`ALWAYS_REACH_MARGIN`). Zane's call. The measured comeback odds do not support it - five
+down is a 19.8% game with 10-5 minutes left and a 5.6% one inside the last two minutes -
+but a five-point game late is worth looking at even when it is probably decided, and this
+is an ordering, not a prediction. It costs little: band 1 goes from 62.9% of the board to
+65.0%, its comeback rate from 33.4% to 32.5%, and the board actually settles slightly
+(3.4% -> 3.2% of polls move a card, sampled in real time). The override also bypasses the
+slack, so such a game can never be stuck a poll behind in band 2.
+
+Known sharp edge: late in a game the 5/6 line is a cliff. With 18 seconds left, 5 points
+is band 1 and 6 points is band 3.
+
 "Reach" is how big a deficit is still within reach *at this moment*, and it is a curve:
 
 - **early**, before many points are on the board, close has to mean closer (`total/7`);
